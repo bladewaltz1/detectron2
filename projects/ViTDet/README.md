@@ -40,9 +40,9 @@ In this repository, we provide configs and models in Detectron2 for ViTDet as we
  <!-- ROW: mask_rcnn_vitdet_b_100ep -->
  <tr><td align="left"><a href="">MLCP, ViT-B</a></td>
 <td align="center">IN1K, MAE</td>
-<td align="center">0.314</td>
-<td align="center">0.079</td>
-<td align="center">10.9</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center"></td>
 <td align="center">51.9</td>
 <td align="center">46.1</td>
 <td align="center"></td>
