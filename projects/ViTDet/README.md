@@ -37,6 +37,17 @@ In this repository, we provide configs and models in Detectron2 for ViTDet as we
 <td align="center">325346929</td>
 <td align="center"><a href="https://dl.fbaipublicfiles.com/detectron2/ViTDet/COCO/mask_rcnn_vitdet_b/f325346929/model_final_61ccd1.pkl">model</a></td>
 </tr>
+ <!-- ROW: mask_rcnn_vitdet_b_100ep -->
+ <tr><td align="left"><a href="">MLCP, ViT-B</a></td>
+<td align="center">IN1K, MAE</td>
+<td align="center">0.314</td>
+<td align="center">0.079</td>
+<td align="center">10.9</td>
+<td align="center">51.9</td>
+<td align="center">46.1</td>
+<td align="center"></td>
+<td align="center"><a href="">model</a></td>
+</tr>
 <!-- ROW: mask_rcnn_vitdet_l_100ep -->
  <tr><td align="left"><a href="configs/COCO/mask_rcnn_vitdet_l_100ep.py">ViTDet, ViT-L</a></td>
 <td align="center">IN1K, MAE</td>
