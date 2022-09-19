@@ -65,8 +65,8 @@ In this repository, we provide configs and models in Detectron2 for ViTDet as we
 <td align="center"></td>
 <td align="center"></td>
 <td align="center"></td>
-<td align="center">55.5</td>
-<td align="center">49.2</td>
+<td align="center">55.7</td>
+<td align="center">49.6</td>
 <td align="center"></td>
 <td align="center"><a href="">model</a></td>
 </tr>
