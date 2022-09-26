@@ -81,6 +81,28 @@ In this repository, we provide configs and models in Detectron2 for ViTDet as we
 <td align="center">329145471</td>
 <td align="center"><a href="https://dl.fbaipublicfiles.com/detectron2/ViTDet/COCO/mask_rcnn_vitdet_h/f329145471/model_final_7224f1.pkl">model</a></td>
 </tr>
+  <!-- ROW: mask_rcnn_vitdet_b_100ep -->
+ <tr><td align="left"><a href="">MAE+DETR-ours, ViT-B</a></td>
+<td align="center">IN1K, MLCP</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">51.9</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center"><a href="">model</a></td>
+</tr>
+   <!-- ROW: mask_rcnn_vitdet_b_100ep -->
+ <tr><td align="left"><a href="">MLCP+DETR-ours, ViT-B</a></td>
+<td align="center">IN1K, MLCP</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center">52.6</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center"><a href="">model</a></td>
+</tr>
 </tbody></table>
 
 #### Cascade Mask R-CNN
