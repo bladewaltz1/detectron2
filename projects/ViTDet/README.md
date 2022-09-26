@@ -83,7 +83,7 @@ In this repository, we provide configs and models in Detectron2 for ViTDet as we
 </tr>
   <!-- ROW: mask_rcnn_vitdet_b_100ep -->
  <tr><td align="left"><a href="">MAE+DETR-ours, ViT-B</a></td>
-<td align="center">IN1K, MLCP</td>
+<td align="center">IN1K, MAE</td>
 <td align="center"></td>
 <td align="center"></td>
 <td align="center"></td>
