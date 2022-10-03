@@ -3,6 +3,7 @@ import math
 import fvcore.nn.weight_init as weight_init
 import torch
 import torch.nn as nn
+from functools import partial
 
 from detectron2.layers import CNNBlockBase, Conv2d, get_norm
 from detectron2.modeling.backbone.fpn import _assert_strides_are_log2_contiguous
@@ -11,6 +12,7 @@ from fairscale.nn.checkpoint import checkpoint_wrapper
 from timm.models.layers import DropPath, Mlp, trunc_normal_
 
 from .backbone import Backbone
+from .build import BACKBONE_REGISTRY
 from .utils import (
     PatchEmbed,
     add_decomposed_rel_pos,
@@ -22,7 +24,8 @@ from .utils import (
 logger = logging.getLogger(__name__)
 
 
-__all__ = ["ViT", "SimpleFeaturePyramid", "get_vit_lr_decay_rate"]
+__all__ = ["ViT", "SimpleFeaturePyramid", "get_vit_lr_decay_rate", 
+           "build_vitdet_base_backbone", "build_vitdet_large_backbone"]
 
 
 class Attention(nn.Module):
@@ -520,3 +523,76 @@ def get_vit_lr_decay_rate(name, lr_decay_rate=1.0, num_layers=12):
             layer_id = int(name[name.find(".blocks.") :].split(".")[2]) + 1
 
     return lr_decay_rate ** (num_layers + 1 - layer_id)
+
+
+@BACKBONE_REGISTRY.register()
+def build_vitdet_base_backbone(cfg, input_shape):
+    embed_dim, depth, num_heads, dp = 768, 12, 12, 0.1
+    backbone = SimpleFeaturePyramid(
+        net=ViT(  # Single-scale ViT backbone
+            img_size=1024,
+            patch_size=16,
+            embed_dim=embed_dim,
+            depth=depth,
+            num_heads=num_heads,
+            drop_path_rate=dp,
+            window_size=14,
+            mlp_ratio=4,
+            qkv_bias=True,
+            norm_layer=partial(nn.LayerNorm, eps=1e-6),
+            window_block_indexes=[
+                # 2, 5, 8 11 for global attention
+                0,
+                1,
+                3,
+                4,
+                6,
+                7,
+                9,
+                10,
+            ],
+            residual_block_indexes=[],
+            use_rel_pos=True,
+            out_feature="last_feat",
+        ),
+        in_feature="last_feat",
+        out_channels=256,
+        scale_factors=(4.0, 2.0, 1.0, 0.5),
+        norm="LN",
+        square_pad=1024,
+    )
+    return backbone
+
+
+@BACKBONE_REGISTRY.register()
+def build_vitdet_large_backbone(cfg, input_shape):
+    embed_dim, depth, num_heads, dp = 1024, 24, 16, 0.4
+    backbone = SimpleFeaturePyramid(
+        net=ViT(  # Single-scale ViT backbone
+            img_size=1024,
+            patch_size=16,
+            embed_dim=embed_dim,
+            depth=depth,
+            num_heads=num_heads,
+            drop_path_rate=dp,
+            window_size=14,
+            mlp_ratio=4,
+            qkv_bias=True,
+            norm_layer=partial(nn.LayerNorm, eps=1e-6),
+            window_block_indexes=(
+                list(range(0, 5)) + 
+                list(range(6, 11)) + 
+                list(range(12, 17)) + 
+                list(range(18, 23))
+            ),
+            residual_block_indexes=[],
+            use_rel_pos=True,
+            out_feature="last_feat",
+        ),
+        in_feature="last_feat",
+        out_channels=256,
+        scale_factors=(4.0, 2.0, 1.0, 0.5),
+        norm="LN",
+        square_pad=1024,
+    )
+    return backbone
