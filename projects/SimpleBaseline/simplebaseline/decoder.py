@@ -3,6 +3,7 @@ import copy
 import math
 
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 from detectron2.modeling.poolers import ROIPooler
@@ -83,15 +84,10 @@ class DecoderLayer(nn.Module):
         seq_len = cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION ** 2
 
         self.self_attn = nn.MultiheadAttention(d_model, num_head, dropout)
-        self.cross_attn = nn.MultiheadAttention(d_model, num_head, dropout)
+        self.multihead_attn = nn.MultiheadAttention(d_model, num_head, dropout)
         self.adapter = nn.Linear(d_model, seq_len * d_model)
-
-        self.ffn = nn.Sequential(
-            nn.Linear(d_model, d_ffn),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(d_ffn, d_model)
-        )
+        self.linear1 = nn.Linear(d_model, d_ffn)
+        self.linear2 = nn.Linear(d_ffn, d_model)
 
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
@@ -150,11 +146,11 @@ class DecoderLayer(nn.Module):
         adaptive_feat = self.adapter(queries).reshape(N * nr_boxes, d_model, -1)
         adaptive_feat = adaptive_feat.permute(2, 0, 1)
         roi_features = roi_features + adaptive_feat
-        queries2 = self.cross_attn(queries, roi_features, roi_features)[0]
+        queries2 = self.multihead_attn(queries, roi_features, roi_features)[0]
         queries = queries + self.dropout(queries2)
         queries = self.norm2(queries)
 
-        queries2 = self.ffn(queries)
+        queries2 = self.linear2(self.dropout(F.gelu(self.linear1(queries))))
         queries = queries + self.dropout(queries2)
         queries = self.norm3(queries)
 

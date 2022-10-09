@@ -20,7 +20,11 @@ from .vit import (
     build_vitdet_large_backbone
 )
 from .mvit import MViT
-from .swin import SwinTransformer
+from .swin import (
+    SwinTransformer,
+    build_swin_base_fpn_backbone,
+    build_swin_large_fpn_backbone
+)
 
 __all__ = [k for k in globals().keys() if not k.startswith("_")]
 # TODO can expose more resnet blocks after careful consideration

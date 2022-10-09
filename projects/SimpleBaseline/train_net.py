@@ -35,9 +35,9 @@ class Trainer(DefaultTrainer):
         return build_detection_train_loader(cfg, mapper=mapper)
 
     @classmethod
-    def build_test_loader(cls, cfg):
+    def build_test_loader(cls, cfg, dataset_name):
         mapper = SimpleBaselineDatasetMapper(cfg, is_train=False)
-        return build_detection_test_loader(cfg, mapper=mapper)
+        return build_detection_test_loader(cfg, dataset_name, mapper=mapper)
 
     @classmethod
     def build_optimizer(cls, cfg, model):

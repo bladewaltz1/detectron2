@@ -18,7 +18,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 
+from detectron2.modeling.backbone.build import BACKBONE_REGISTRY
 from detectron2.modeling.backbone.backbone import Backbone
+from detectron2.modeling.backbone.fpn import FPN
 
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 
@@ -688,3 +690,37 @@ class SwinTransformer(Backbone):
                 outs["p{}".format(i)] = out
 
         return outs
+
+
+@BACKBONE_REGISTRY.register()
+def build_swin_base_fpn_backbone(cfg, input_shape):
+    backbone = FPN(
+        bottom_up=SwinTransformer(
+            depths=[2, 2, 18, 2],
+            drop_path_rate=0.4,
+            embed_dim=128,
+            num_heads=[4, 8, 16, 32],
+        ),
+        in_features=("p0", "p1", "p2", "p3"),
+        square_pad=1024,
+        norm="LN",
+        out_channels=256,
+    )
+    return backbone
+
+
+@BACKBONE_REGISTRY.register()
+def build_swin_large_fpn_backbone(cfg, input_shape):
+    backbone = FPN(
+        bottom_up=SwinTransformer(
+            depths=[2, 2, 18, 2],
+            drop_path_rate=0.4,
+            embed_dim=192,
+            num_heads=[6, 12, 24, 48],
+        ),
+        in_features=("p0", "p1", "p2", "p3"),
+        square_pad=1024,
+        norm="LN",
+        out_channels=256,
+    )
+    return backbone
