@@ -42,12 +42,14 @@ class SimpleBaseline(nn.Module):
             feature = src[f]
             features.append(feature)
 
-        init_boxes = img_box[:, None, :].repeat(1, self.num_queries, 1)
-        output = self.decoder(features, init_boxes, self.queries.weight)
+        with torch.cuda.amp.autocast(enabled=False):
+            init_boxes = img_box[:, None, :].repeat(1, self.num_queries, 1)
+            output = self.decoder(features, init_boxes, self.queries.weight)
 
         if self.training:
             targets = [x["instances"].to(self.device) for x in batched_inputs]
-            loss_dict = self.criterion(output, targets)
+            with torch.cuda.amp.autocast(enabled=False):
+                loss_dict = self.criterion(output, targets)
             return loss_dict
         else:
             pred_logits = output[-1]["pred_logits"]
