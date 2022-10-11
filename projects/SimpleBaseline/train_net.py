@@ -4,7 +4,6 @@ import itertools
 
 import torch
 
-import detectron2.data.transforms as T
 import detectron2.utils.comm as comm
 from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.config import get_cfg

@@ -23,6 +23,7 @@ def add_simplebaseline_config(cfg):
     cfg.MODEL.SimpleBaseline.PRIOR_PROB = 0.01
     cfg.MODEL.SimpleBaseline.GIOU_WEIGHT = 2.0
     cfg.MODEL.SimpleBaseline.L1_WEIGHT = 5.0
+    cfg.MODEL.SimpleBaseline.DICE_WEIGHT = 8.0
 
     # Optimizer.
     cfg.SOLVER.OPTIMIZER = "ADAMW"

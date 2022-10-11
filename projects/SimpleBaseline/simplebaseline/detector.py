@@ -47,13 +47,14 @@ class SimpleBaseline(nn.Module):
 
         if self.training:
             targets = [x["instances"].to(self.device) for x in batched_inputs]
-            targets = self.prepare_targets(targets)
             loss_dict = self.criterion(output, targets)
             return loss_dict
         else:
             pred_logits = output[-1]["pred_logits"]
             pred_boxes = output[-1]["pred_boxes"]
-            results = self.inference(pred_logits, pred_boxes, imgs.image_sizes)
+            pred_masks = output[-1]["pred_masks"]
+            results = self.inference(pred_logits, pred_boxes, pred_masks, 
+                                     imgs.image_sizes)
 
             processed_results = []
             for results_per_image, input_per_image, image_size in zip(
@@ -65,19 +66,7 @@ class SimpleBaseline(nn.Module):
 
             return processed_results
 
-    def prepare_targets(self, targets):
-        new_targets = []
-        for target in targets:
-            h, w = target.image_size
-            image_size = torch.as_tensor([w, h, w, h], dtype=torch.float)
-            new_targets.append({
-                "image_size": image_size.unsqueeze(0).to(self.device),
-                "labels": target.gt_classes.to(self.device),
-                "boxes": target.gt_boxes.tensor.to(self.device)
-            })
-        return new_targets
-
-    def inference(self, pred_logits, pred_boxes, image_sizes):
+    def inference(self, pred_logits, pred_boxes, pred_masks, image_sizes):
         assert len(pred_logits) == len(image_sizes)
         results = []
 
@@ -85,8 +74,12 @@ class SimpleBaseline(nn.Module):
         labels = torch.arange(self.num_classes, device=self.device)
         labels = labels.unsqueeze(0).repeat(self.num_queries, 1).flatten(0, 1)
 
-        for i, (score, box, image_size) in enumerate(
-                zip(scores, pred_boxes, image_sizes)):
+        B, L, C = pred_logits.shape
+        H, W = pred_masks.shape[-2:]
+        pred_masks = pred_masks.view(B, L, C, H, W)
+
+        for i, (score, box, mask, image_size) in enumerate(
+                zip(scores, pred_boxes, pred_masks, image_sizes)):
             result = Instances(image_size)
             score, topk_indices = score.flatten(0, 1).topk(100, sorted=False)
             result.scores = score
@@ -97,6 +90,10 @@ class SimpleBaseline(nn.Module):
             box = box.view(-1, 1, 4).repeat(1, self.num_classes, 1)
             box = box.view(-1, 4)[topk_indices]
             result.pred_boxes = Boxes(box)
+
+            mask = mask.view(-1, H, W)[topk_indices]
+            result.pred_masks = mask
+
             results.append(result)
 
         return results

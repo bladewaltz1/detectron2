@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from detectron2.modeling.poolers import ROIPooler
+from detectron2.modeling.roi_heads import build_mask_head
 from detectron2.structures import Boxes
 
 
@@ -16,11 +17,10 @@ _DEFAULT_SCALE_CLAMP = math.log(100000.0 / 16)
 class Decoder(nn.Module):
     def __init__(self, cfg, input_shape):
         super().__init__()
-        box_pooler = self._init_box_pooler(cfg, input_shape)
-        self.box_pooler = box_pooler
+        self.box_pooler, self.mask_pooler = self._init_pooler(cfg, input_shape)
 
         num_layer = cfg.MODEL.SimpleBaseline.NUM_LAYERS
-        decoder_layer = DecoderLayer(cfg)
+        decoder_layer = DecoderLayer(cfg, input_shape)
         self.decoder_layers = _get_clones(decoder_layer, num_layer)
 
         self.num_classes = cfg.MODEL.SimpleBaseline.NUM_CLASSES
@@ -37,8 +37,7 @@ class Decoder(nn.Module):
             if p.shape[-1] == self.num_classes:
                 nn.init.constant_(p, self.bias_value)
 
-    @staticmethod
-    def _init_box_pooler(cfg, input_shape):
+    def _init_pooler(self, cfg, input_shape):
         in_features = cfg.MODEL.ROI_HEADS.IN_FEATURES
         pooler_resolution = cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION
         pooler_scales = tuple(1.0 / input_shape[k].stride for k in in_features)
@@ -55,7 +54,22 @@ class Decoder(nn.Module):
             sampling_ratio=sampling_ratio,
             pooler_type=pooler_type,
         )
-        return box_pooler
+
+        in_features = cfg.MODEL.ROI_HEADS.IN_FEATURES
+        pooler_resolution = cfg.MODEL.ROI_MASK_HEAD.POOLER_RESOLUTION
+        pooler_scales = tuple(1.0 / input_shape[k].stride for k in in_features)
+        sampling_ratio = cfg.MODEL.ROI_MASK_HEAD.POOLER_SAMPLING_RATIO
+        pooler_type = cfg.MODEL.ROI_MASK_HEAD.POOLER_TYPE
+        in_channels = [input_shape[f].channels for f in in_features]
+
+        mask_pooler = ROIPooler(
+            output_size=pooler_resolution,
+            scales=pooler_scales,
+            sampling_ratio=sampling_ratio,
+            pooler_type=pooler_type,
+        )
+
+        return box_pooler, mask_pooler
 
     def forward(self, features, init_boxes, queries):
         output = []
@@ -64,18 +78,20 @@ class Decoder(nn.Module):
         queries = queries[None].repeat(bs, 1, 1)
 
         for _, layer in enumerate(self.decoder_layers):
-            pred_logits, pred_boxes, queries = layer(
-                features, boxes, queries, self.box_pooler
+            pred_logits, pred_boxes, queries, pred_masks = layer(
+                features, boxes, queries, self.box_pooler, self.mask_pooler
             )
-            output.append(
-                {'pred_logits': pred_logits, 'pred_boxes': pred_boxes}
-            )
+            output.append({
+                'pred_logits': pred_logits, 
+                'pred_boxes': pred_boxes,
+                'pred_masks': pred_masks
+            })
             boxes = pred_boxes.detach()
         return output
 
 
 class DecoderLayer(nn.Module):
-    def __init__(self, cfg):
+    def __init__(self, cfg, input_shape):
         super().__init__()
         d_model = cfg.MODEL.SimpleBaseline.HIDDEN_DIM
         d_ffn = cfg.MODEL.SimpleBaseline.FEEDFORWARD_DIM
@@ -122,7 +138,10 @@ class DecoderLayer(nn.Module):
         self.class_logits = nn.Linear(d_model, num_classes)
         self.bboxes_delta = nn.Linear(d_model, 4)
 
-    def forward(self, features, boxes, queries, pooler):
+        self.adapter_mask = nn.Linear(d_model, seq_len * d_model)
+        self.mask_head = build_mask_head(cfg, list(input_shape.values())[0])
+
+    def forward(self, features, boxes, queries, box_pooler, mask_pooler):
         """
         boxes: (N, nr_boxes, 4)
         queries: (N, nr_boxes, d_model)
@@ -132,7 +151,7 @@ class DecoderLayer(nn.Module):
         query_boxes = list()
         for b in range(N):
             query_boxes.append(Boxes(boxes[b]))
-        roi_features = pooler(features, query_boxes)
+        roi_features = box_pooler(features, query_boxes)
         roi_features = roi_features.view(N * nr_boxes, d_model, -1)
         roi_features = roi_features.permute(2, 0, 1)
 
@@ -144,8 +163,7 @@ class DecoderLayer(nn.Module):
         queries = queries.permute(1, 0, 2)
         queries = queries.reshape(1, N * nr_boxes, d_model)
         adaptive_feat = self.adapter(queries).reshape(N * nr_boxes, d_model, -1)
-        adaptive_feat = adaptive_feat.permute(2, 0, 1)
-        roi_features = roi_features + adaptive_feat
+        roi_features = roi_features + adaptive_feat.permute(2, 0, 1)
         queries2 = self.multihead_attn(queries, roi_features, roi_features)[0]
         queries = queries + self.dropout(queries2)
         queries = self.norm2(queries)
@@ -167,7 +185,25 @@ class DecoderLayer(nn.Module):
         pred_boxes = pred_boxes.view(N, nr_boxes, -1)
         queries = queries.view(N, nr_boxes, d_model)
 
-        return pred_logits, pred_boxes, queries
+        # mask
+        boxes = pred_boxes.detach()
+        query_boxes = list()
+        for b in range(N):
+            query_boxes.append(Boxes(boxes[b]))
+
+        roi_features = mask_pooler(features, query_boxes)
+        adaptive_feat = self.adapter_mask(queries).reshape(
+            N * nr_boxes, d_model, *box_pooler.output_size
+        )
+        adaptive_feat = F.interpolate(
+            adaptive_feat, mask_pooler.output_size, 
+            mode='bilinear', 
+            align_corners=True
+        )
+        roi_features = roi_features + adaptive_feat
+        pred_masks = self.mask_head.layers(roi_features).sigmoid()
+
+        return pred_logits, pred_boxes, queries, pred_masks
 
     def apply_deltas(self, deltas, boxes):
         """
