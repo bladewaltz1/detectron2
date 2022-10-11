@@ -92,7 +92,7 @@ class SimpleBaseline(nn.Module):
             result.pred_boxes = Boxes(box)
 
             mask = mask.view(-1, H, W)[topk_indices]
-            result.pred_masks = mask
+            result.pred_masks = mask.unsqueeze(1)
 
             results.append(result)
 
