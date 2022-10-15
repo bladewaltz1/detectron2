@@ -530,7 +530,7 @@ def build_vitdet_base_backbone(cfg, input_shape):
     embed_dim, depth, num_heads, dp = 768, 12, 12, 0.1
     backbone = SimpleFeaturePyramid(
         net=ViT(  # Single-scale ViT backbone
-            img_size=1024,
+            img_size=cfg.INPUT.MAX_SIZE_TRAIN,
             patch_size=16,
             embed_dim=embed_dim,
             depth=depth,
@@ -559,7 +559,7 @@ def build_vitdet_base_backbone(cfg, input_shape):
         out_channels=256,
         scale_factors=(4.0, 2.0, 1.0, 0.5),
         norm="LN",
-        square_pad=1024,
+        square_pad=cfg.INPUT.MAX_SIZE_TRAIN,
     )
     return backbone
 
@@ -569,7 +569,7 @@ def build_vitdet_large_backbone(cfg, input_shape):
     embed_dim, depth, num_heads, dp = 1024, 24, 16, 0.4
     backbone = SimpleFeaturePyramid(
         net=ViT(  # Single-scale ViT backbone
-            img_size=1024,
+            img_size=cfg.INPUT.MAX_SIZE_TRAIN,
             patch_size=16,
             embed_dim=embed_dim,
             depth=depth,
@@ -593,6 +593,6 @@ def build_vitdet_large_backbone(cfg, input_shape):
         out_channels=256,
         scale_factors=(4.0, 2.0, 1.0, 0.5),
         norm="LN",
-        square_pad=1024,
+        square_pad=cfg.INPUT.MAX_SIZE_TRAIN,
     )
     return backbone
