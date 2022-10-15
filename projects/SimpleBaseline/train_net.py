@@ -1,4 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+import hf_env
+hf_env.set_env("det")
+
 import os
 import itertools
 
@@ -126,12 +129,19 @@ def main(args):
 
 if __name__ == "__main__":
     args = default_argument_parser().parse_args()
+
+    ip = os.environ['MASTER_IP']
+    port = os.environ['MASTER_PORT']
+    hosts = int(os.environ['WORLD_SIZE'])  # number of machines
+    rank = int(os.environ['RANK'])  # machine rank
+    gpus = torch.cuda.device_count()  # numer of gpus per machine
+
     print("Command Line Args:", args)
     launch(
         main,
-        args.num_gpus,
-        num_machines=args.num_machines,
-        machine_rank=args.machine_rank,
-        dist_url=args.dist_url,
+        gpus,
+        num_machines=hosts,
+        machine_rank=rank,
+        dist_url=f'tcp://{ip}:{port}',
         args=(args,),
     )

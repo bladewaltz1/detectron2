@@ -7,30 +7,33 @@ import torch
 from detectron2.data import detection_utils as utils
 from detectron2.data import transforms as T
 
+from hfai.datasets.coco import CocoReader
 
-def build_transform_gen(is_train):
+
+def build_transform_gen(cfg, is_train):
     """
     Create a list of :class:`TransformGen` from config.
     Returns:
         list[TransformGen]
     """
+    size = cfg.INPUT.MAX_SIZE_TRAIN
     if is_train:
         transforms = [
             T.RandomFlip(horizontal=True),  # flip first
             T.ResizeScale(
                 min_scale=0.1, max_scale=2.0, 
-                target_height=1024, target_width=1024
+                target_height=size, target_width=size
             ),
-            T.FixedSizeCrop(crop_size=(1024, 1024), pad=False),
+            T.FixedSizeCrop(crop_size=(size, size), pad=False),
         ]
     else:
         transforms = [
-            T.ResizeShortestEdge(short_edge_length=1024, max_size=1024),
+            T.ResizeShortestEdge(short_edge_length=size, max_size=size),
         ]
     return transforms
 
 
-class SimpleBaselineDatasetMapper:
+class HfaiDatasetMapper:
     """
     A callable which takes a dataset dict in Detectron2 Dataset format,
     and map it into a format used by SimpleBaseline.
@@ -43,9 +46,15 @@ class SimpleBaselineDatasetMapper:
     4. Prepare image and annotation to Tensors
     """
     def __init__(self, cfg, is_train=True):
-        self.tfm_gens = build_transform_gen(is_train)
+        self.tfm_gens = build_transform_gen(cfg, is_train)
         self.img_format = cfg.INPUT.FORMAT
         self.is_train = is_train
+
+        split = "train" if is_train else "val"
+        self.reader = CocoReader(split)
+        from pycocotools.coco import COCO
+        coco_api = COCO(f"coco/annotations/instances_{split}2017.json")
+        self.img_ids = sorted(coco_api.imgs.keys())
 
     def __call__(self, dataset_dict):
         """
@@ -55,7 +64,9 @@ class SimpleBaselineDatasetMapper:
             dict: a format that builtin models in detectron2 accept
         """
         dataset_dict = copy.deepcopy(dataset_dict)
-        image = utils.read_image(dataset_dict["file_name"], self.img_format)
+        image_id = dataset_dict["image_id"]
+        index = self.img_ids.index(image_id)
+        image = self.reader.read_imgs([index])[0]
         utils.check_image_size(dataset_dict, image)
 
         image, tfms = T.apply_transform_gens(self.tfm_gens, image)
