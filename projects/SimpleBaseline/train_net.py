@@ -1,7 +1,4 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
-import hf_env
-hf_env.set_env("det")
-
 import os
 import itertools
 

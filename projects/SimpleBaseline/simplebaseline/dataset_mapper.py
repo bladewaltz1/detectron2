@@ -33,7 +33,7 @@ def build_transform_gen(cfg, is_train):
     return transforms
 
 
-class HfaiDatasetMapper:
+class SimpleBaselineDatasetMapper:
     """
     A callable which takes a dataset dict in Detectron2 Dataset format,
     and map it into a format used by SimpleBaseline.
