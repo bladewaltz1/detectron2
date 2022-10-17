@@ -19,7 +19,7 @@ from typing import Optional
 import torch
 from fvcore.nn.precise_bn import get_bn_modules
 from omegaconf import OmegaConf
-from torch.nn.parallel import DistributedDataParallel
+from hfai.nn.parallel import DistributedDataParallel
 
 import detectron2.data.transforms as T
 from detectron2.checkpoint import DetectionCheckpointer
