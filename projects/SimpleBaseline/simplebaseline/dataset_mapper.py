@@ -21,7 +21,7 @@ def build_transform_gen(cfg, is_train):
         transforms = [
             T.RandomFlip(horizontal=True),  # flip first
             T.ResizeScale(
-                min_scale=0.1, max_scale=2.0, 
+                min_scale=0.1, max_scale=2.0,
                 target_height=size, target_width=size
             ),
             T.FixedSizeCrop(crop_size=(size, size), pad=False),
@@ -50,10 +50,11 @@ class SimpleBaselineDatasetMapper:
         self.img_format = cfg.INPUT.FORMAT
         self.is_train = is_train
 
+        from pycocotools.coco import COCO
         split = "train" if is_train else "val"
         self.reader = CocoReader(split)
-        from pycocotools.coco import COCO
-        coco_api = COCO(f"coco/annotations/instances_{split}2017.json")
+        self.reader.load_instances()
+        coco_api = COCO(f"datasets/coco/annotations/instances_{split}2017.json")
         self.img_ids = sorted(coco_api.imgs.keys())
 
     def __call__(self, dataset_dict):
@@ -67,6 +68,8 @@ class SimpleBaselineDatasetMapper:
         image_id = dataset_dict["image_id"]
         index = self.img_ids.index(image_id)
         image = self.reader.read_imgs([index])[0]
+        image = utils._apply_exif_orientation(image)
+        image = utils.convert_PIL_to_numpy(image, self.img_format)
         utils.check_image_size(dataset_dict, image)
 
         image, tfms = T.apply_transform_gens(self.tfm_gens, image)

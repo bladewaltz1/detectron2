@@ -125,6 +125,9 @@ def main(args):
 
 
 if __name__ == "__main__":
+    os.chdir("../../") # FIXME unexpected workdir change
+    print(os.listdir("."))
+
     args = default_argument_parser().parse_args()
 
     ip = os.environ['MASTER_IP']
