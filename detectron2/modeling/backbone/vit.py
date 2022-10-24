@@ -596,3 +596,101 @@ def build_vitdet_large_backbone(cfg, input_shape):
         square_pad=1024,
     )
     return backbone
+
+
+class FakeFeaturePyramid(Backbone):
+    def __init__(
+        self,
+        net,
+        in_feature,
+        out_channels,
+        norm="LN",
+        square_pad=0,
+    ):
+        """
+        Args:
+            net (Backbone): module representing the subnetwork backbone.
+                Must be a subclass of :class:`Backbone`.
+            in_feature (str): names of the input feature maps coming
+                from the net.
+            out_channels (int): number of channels in the output feature maps.
+            norm (str): the normalization to use.
+            square_pad (int): If > 0, require input images to be padded to specific square size.
+        """
+        super(FakeFeaturePyramid, self).__init__()
+        assert isinstance(net, Backbone)
+
+        input_shapes = net.output_shape()
+        stride = int(input_shapes[in_feature].stride)
+
+        dim = input_shapes[in_feature].channels
+        layers = [
+            nn.Linear(dim, out_channels),
+            nn.LayerNorm(out_channels)
+        ]
+        self.neck = nn.Sequential(*layers)
+
+        self.net = net
+        self.in_feature = in_feature
+
+        self._out_feature_strides = {in_feature: stride}
+        self._out_features = [in_feature]
+        self._out_feature_channels = {in_feature: out_channels}
+        self._size_divisibility = stride
+        self._square_pad = square_pad
+
+    @property
+    def padding_constraints(self):
+        return {
+            "size_divisiblity": self._size_divisibility,
+            "square_size": self._square_pad,
+        }
+
+    def forward(self, x):
+        bottom_up_features = self.net(x)
+        features = bottom_up_features[self.in_feature]
+        n, c, h, w = features.shape
+        features = features.reshape(n, c, h*w).permute(0, 2, 1)
+        features = self.neck(features)
+        features = features.permute(0, 2, 1).reshape(n, -1, h, w)
+        results = [features]
+
+        return {f: res for f, res in zip(self._out_features, results)}
+
+
+@BACKBONE_REGISTRY.register()
+def build_vit_base_backbone(cfg, input_shape):
+    embed_dim, depth, num_heads, dp = 768, 12, 12, 0.1
+    backbone = FakeFeaturePyramid(
+        net=ViT(  # Single-scale ViT backbone
+            img_size=1024,
+            patch_size=16,
+            embed_dim=embed_dim,
+            depth=depth,
+            num_heads=num_heads,
+            drop_path_rate=dp,
+            window_size=14,
+            mlp_ratio=4,
+            qkv_bias=True,
+            norm_layer=partial(nn.LayerNorm, eps=1e-6),
+            window_block_indexes=[
+                # 2, 5, 8 11 for global attention
+                0,
+                1,
+                3,
+                4,
+                6,
+                7,
+                9,
+                10,
+            ],
+            residual_block_indexes=[],
+            use_rel_pos=True,
+            out_feature="last_feat",
+        ),
+        in_feature="last_feat",
+        out_channels=256,
+        norm="LN",
+        square_pad=1024,
+    )
+    return backbone

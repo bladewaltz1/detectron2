@@ -43,10 +43,6 @@ class Decoder(nn.Module):
         pooler_scales = tuple(1.0 / input_shape[k].stride for k in in_features)
         sampling_ratio = cfg.MODEL.ROI_BOX_HEAD.POOLER_SAMPLING_RATIO
         pooler_type = cfg.MODEL.ROI_BOX_HEAD.POOLER_TYPE
-        in_channels = [input_shape[f].channels for f in in_features]
-
-        # Check all channel counts are equal
-        assert len(set(in_channels)) == 1, in_channels
 
         box_pooler = ROIPooler(
             output_size=pooler_resolution,
@@ -60,7 +56,6 @@ class Decoder(nn.Module):
         pooler_scales = tuple(1.0 / input_shape[k].stride for k in in_features)
         sampling_ratio = cfg.MODEL.ROI_MASK_HEAD.POOLER_SAMPLING_RATIO
         pooler_type = cfg.MODEL.ROI_MASK_HEAD.POOLER_TYPE
-        in_channels = [input_shape[f].channels for f in in_features]
 
         mask_pooler = ROIPooler(
             output_size=pooler_resolution,

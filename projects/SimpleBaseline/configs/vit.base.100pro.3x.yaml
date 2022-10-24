@@ -1,0 +1,17 @@
+_BASE_: "Base-SimpleBaseline.yaml"
+MODEL:
+  WEIGHTS: "https://dl.fbaipublicfiles.com/mae/pretrain/mae_pretrain_vit_base.pth"
+  BACKBONE:
+    NAME: "build_vit_base_backbone"
+  ROI_HEADS:
+    IN_FEATURES: ["last_feat"]
+  SimpleBaseline:
+    NUM_QUERIES: 100
+    NUM_CLASSES: 80
+DATASETS:
+  TRAIN: ("coco_2017_train",)
+  TEST:  ("coco_2017_val",)
+SOLVER:
+  STEPS: (210000, 250000)
+  MAX_ITER: 270000
+
