@@ -150,12 +150,6 @@ class DecoderLayer(nn.Module):
         roi_features = roi_features.view(N * nr_boxes, d_model, -1)
         roi_features = roi_features.permute(2, 0, 1)
 
-        queries = queries.permute(1, 0, 2)
-        queries2 = self.self_attn(queries, queries, queries)[0]
-        queries = queries + self.dropout(queries2)
-        queries = self.norm1(queries)
-
-        queries = queries.permute(1, 0, 2)
         queries = queries.reshape(1, N * nr_boxes, d_model)
         adaptive_feat = self.adapter(queries).reshape(N * nr_boxes, d_model, -1)
         roi_features = roi_features + adaptive_feat.permute(2, 0, 1)
@@ -163,6 +157,13 @@ class DecoderLayer(nn.Module):
         queries = queries + self.dropout(queries2)
         queries = self.norm2(queries)
 
+        queries = queries.reshape(N, nr_boxes, d_model)
+        queries = queries.permute(1, 0, 2)
+        queries2 = self.self_attn(queries, queries, queries)[0]
+        queries = queries + self.dropout(queries2)
+        queries = self.norm1(queries)
+
+        queries = queries.permute(1, 0, 2)
         queries2 = self.linear2(self.dropout(F.gelu(self.linear1(queries))))
         queries = queries + self.dropout(queries2)
         queries = self.norm3(queries)
@@ -178,7 +179,6 @@ class DecoderLayer(nn.Module):
         deltas = self.bboxes_delta(reg_feature.view(N * nr_boxes, -1))
         pred_boxes = self.apply_deltas(deltas, boxes.view(-1, 4))
         pred_boxes = pred_boxes.view(N, nr_boxes, -1)
-        queries = queries.view(N, nr_boxes, d_model)
 
         # mask
         boxes = pred_boxes.detach()
